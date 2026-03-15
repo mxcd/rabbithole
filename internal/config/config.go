@@ -17,7 +17,7 @@ func InitConfig() error {
 		config.Int("TUNNEL_TIMEOUT").Default(30),
 
 		// tunnel auth config
-		config.String("API_KEYS").Default(""),
+		config.String("API_KEYS").Default("").Sensitive(),
 
 		// dashboard auth config
 		config.String("SESSION_SECRET_KEY").NotEmpty().Sensitive(),

@@ -31,9 +31,12 @@ func NewAPIKeyAuth(keysConfig string) *APIKeyAuth {
 		}
 		parts := strings.SplitN(entry, ":", 2)
 		key := strings.TrimSpace(parts[0])
-		label := key
+		label := ""
 		if len(parts) == 2 {
 			label = strings.TrimSpace(parts[1])
+		}
+		if label == "" {
+			label = "unlabeled"
 		}
 		auth.Keys[key] = label
 		log.Info().Str("label", label).Msg("registered API key")
