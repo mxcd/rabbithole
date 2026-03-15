@@ -1,0 +1,29 @@
+{
+  "name": "rabbithole-dashboard",
+  "version": "0.0.1",
+  "description": "Rabbithole Dev Proxy Dashboard",
+  "productName": "Rabbithole",
+  "author": "Max Partenfelder",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "quasar dev",
+    "build": "quasar build",
+    "postinstall": "quasar prepare"
+  },
+  "dependencies": {
+    "@quasar/extras": "^1.16.4",
+    "quasar": "^2.16.0",
+    "vue": "^3.5.22",
+    "vue-router": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.5.9",
+    "@quasar/app-vite": "^2.1.0",
+    "autoprefixer": "^10.4.2",
+    "typescript": "^5.9.2"
+  },
+  "engines": {
+    "node": "^28 || ^26 || ^24 || ^22 || ^20"
+  }
+}

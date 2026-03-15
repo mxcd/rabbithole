@@ -1,0 +1,40 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/mxcd/rabbithole
+  tag: ""  # defaults to Chart.appVersion
+  pullPolicy: IfNotPresent
+
+baseDomain: tunnel.example.com
+
+apiKeys: ""  # comma-separated key:label pairs, e.g. "rh_abc123:alice,rh_def456:bob"
+
+config:
+  port: 8080
+  logLevel: info
+  tunnelTimeout: 30
+
+ingress:
+  enabled: true
+  className: traefik
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+  tls:
+    enabled: true
+    secretName: rabbithole-tls
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+serviceAccount:
+  create: false
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

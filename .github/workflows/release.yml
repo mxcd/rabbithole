@@ -1,0 +1,97 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+jobs:
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Changelog
+        uses: scottbrenner/generate-changelog-action@master
+        id: changelog
+        env:
+          REPO: ${{ github.repository }}
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          body: |
+            ${{ steps.changelog.outputs.changelog }}
+          draft: false
+          prerelease: false
+
+  binaries:
+    name: Build CLI
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [amd64, arm64]
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            os_name: linux
+            goos: linux
+            suffix: ""
+          - os: windows-latest
+            os_name: windows
+            goos: windows
+            suffix: ".exe"
+          - os: macos-latest
+            os_name: darwin
+            goos: darwin
+            suffix: ""
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+      - name: Build rh CLI
+        env:
+          GOARCH: ${{ matrix.arch }}
+          GOOS: ${{ matrix.goos }}
+          CGO_ENABLED: 0
+        run: go build -o rh${{ matrix.suffix }} -ldflags="-s -w -X 'github.com/mxcd/rabbithole/internal/util.Version=${{ github.ref_name }}'" ./cmd/rh
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: rh${{ matrix.suffix }}
+          asset_name: rh_${{ matrix.os_name }}_${{ matrix.arch }}${{ matrix.suffix }}
+          tag: ${{ github.ref }}
+
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          tags: ghcr.io/mxcd/rabbithole:${{ github.ref_name }}
+          file: docker/server.Dockerfile
