@@ -97,13 +97,19 @@ func tunnelCommand() *cli.Command {
 			cfg := loadConfig()
 			serverURL := cmd.String("server")
 			if serverURL == "" {
+				serverURL = os.Getenv("RABBITHOLE_BASE_URL")
+			}
+			if serverURL == "" {
 				serverURL = cfg.Server
 			}
 			if serverURL == "" {
-				return fmt.Errorf("server URL not configured. Run: rh config set server <url>")
+				return fmt.Errorf("server URL not configured. Set RABBITHOLE_BASE_URL or run: rh config set server <url>")
 			}
 
 			apiKey := cmd.String("key")
+			if apiKey == "" {
+				apiKey = os.Getenv("RABBITHOLE_API_KEY")
+			}
 			if apiKey == "" {
 				apiKey = cfg.APIKey
 			}
