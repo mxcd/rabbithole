@@ -10,11 +10,19 @@
       <q-card-section>
         <q-form @submit="handleLogin">
           <q-input
+            v-model="username"
+            label="Username"
+            outlined
+            autofocus
+            :error="!!error"
+            @update:model-value="error = ''"
+          />
+          <q-input
             v-model="password"
             type="password"
             label="Password"
             outlined
-            autofocus
+            class="q-mt-sm"
             :error="!!error"
             :error-message="error"
             @update:model-value="error = ''"
@@ -37,6 +45,7 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 
 const router = useRouter();
+const username = ref('');
 const password = ref('');
 const error = ref('');
 const loading = ref(false);
@@ -49,7 +58,7 @@ async function handleLogin() {
     const resp = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identifier: 'admin', password: password.value }),
+      body: JSON.stringify({ identifier: username.value, password: password.value }),
     });
 
     if (!resp.ok) {

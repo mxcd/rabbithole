@@ -3,7 +3,10 @@ import type { RouteRecordRaw } from 'vue-router';
 const routes: RouteRecordRaw[] = [
   {
     path: '/login',
-    component: () => import('pages/LoginPage.vue'),
+    component: () => import('layouts/BlankLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/LoginPage.vue') },
+    ],
   },
   {
     path: '/',
@@ -14,7 +17,10 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/:catchAll(.*)*',
-    component: () => import('pages/ErrorNotFound.vue'),
+    component: () => import('layouts/BlankLayout.vue'),
+    children: [
+      { path: '', component: () => import('pages/ErrorNotFound.vue') },
+    ],
   },
 ];
 
