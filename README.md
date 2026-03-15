@@ -170,6 +170,54 @@ The controller is configured via environment variables:
 | `STATIC_HOSTING` | `true` | Embed dashboard UI or proxy to dev server |
 | `UI_PROXY_URL` | `http://localhost:9000` | Quasar dev server URL (when `STATIC_HOSTING=false`) |
 
+## Kubernetes deployment notes
+
+### Origin header stripping
+
+Browsers include an `Origin` header on requests loaded by a page (scripts, stylesheets, fetch calls). When tunneling to a local dev server (e.g. Vite/Quasar), this header can trigger 403 responses from the infrastructure layer (Traefik / load balancer) before the request even reaches the rabbithole controller.
+
+The fix is a **Traefik Middleware** that strips the `Origin` header for tunnel subdomains. The wildcard ingress (`*.tunnel.example.com`) must be a separate Ingress resource so the middleware only applies to tunneled traffic, not to the admin dashboard.
+
+```yaml
+# middleware.yml — strip Origin for tunnel subdomains
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: rabbithole-strip-origin
+spec:
+  headers:
+    customRequestHeaders:
+      Origin: ""
+```
+
+```yaml
+# ingress.yml — separate Ingress for tunnels with middleware annotation
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rabbithole-tunnels
+  annotations:
+    traefik.ingress.kubernetes.io/router.middlewares: <namespace>-rabbithole-strip-origin@kubernetescrd
+spec:
+  tls:
+    - hosts:
+        - "*.tunnel.example.com"
+      secretName: tunnel-example-com-tls-secret
+  rules:
+    - host: "*.tunnel.example.com"
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rabbithole
+                port:
+                  number: 80
+```
+
+The admin dashboard ingress (`tunnel.example.com`) remains unchanged without the middleware.
+
 ## Architecture
 
 ```mermaid
