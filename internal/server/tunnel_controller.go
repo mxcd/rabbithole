@@ -87,7 +87,11 @@ func (s *Server) handleTunnelConnect(c *gin.Context) {
 		return
 	}
 
+	stopKeepalive := make(chan struct{})
+	t.StartKeepalive(stopKeepalive)
+
 	t.ReadLoop()
+	close(stopKeepalive)
 
 	s.Options.Registry.Deregister(subdomain)
 	conn.Close()

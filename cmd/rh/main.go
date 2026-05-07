@@ -192,6 +192,17 @@ func runTunnel(serverURL, apiKey, name string, port int) error {
 	}
 	defer conn.Close()
 
+	const (
+		pingInterval = 30 * time.Second
+		pongWait     = 90 * time.Second
+		writeWait    = 10 * time.Second
+	)
+	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetPongHandler(func(string) error {
+		conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+
 	_, raw, err := conn.ReadMessage()
 	if err != nil {
 		return fmt.Errorf("failed to read tunnel info: %w", err)
@@ -230,6 +241,25 @@ func runTunnel(serverURL, apiKey, name string, port int) error {
 	}
 
 	done := make(chan struct{})
+
+	go func() {
+		ticker := time.NewTicker(pingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				writeMu.Lock()
+				err := conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(writeWait))
+				writeMu.Unlock()
+				if err != nil {
+					return
+				}
+			}
+		}
+	}()
+
 	go func() {
 		defer close(done)
 		for {

@@ -7,6 +7,16 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/mxcd/rabbithole/pkg/protocol"
+	"github.com/rs/zerolog/log"
+)
+
+// Keepalive: cloud LBs (e.g. Hetzner Cloud LB) close idle TCP sessions after
+// ~60 minutes. Sending WebSocket ping control frames keeps the path warm and
+// lets us detect dead tunnels via the pong handler / read deadline.
+const (
+	pingInterval = 30 * time.Second
+	pongWait     = 90 * time.Second
+	writeWait    = 10 * time.Second
 )
 
 type Tunnel struct {
@@ -77,4 +87,41 @@ func (t *Tunnel) RemovePendingRequest(id string) {
 	t.HttpMu.Lock()
 	defer t.HttpMu.Unlock()
 	delete(t.PendingHTTP, id)
+}
+
+// StartKeepalive arms the WebSocket read deadline + pong handler and spawns a
+// goroutine that sends ping control frames every pingInterval. The goroutine
+// returns when stop is closed or a write fails (which also closes the
+// underlying connection so the read loop unblocks).
+func (t *Tunnel) StartKeepalive(stop <-chan struct{}) {
+	t.Connection.SetReadDeadline(time.Now().Add(pongWait))
+	t.Connection.SetPongHandler(func(string) error {
+		t.Connection.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
+	go t.pingLoop(stop)
+}
+
+func (t *Tunnel) pingLoop(stop <-chan struct{}) {
+	ticker := time.NewTicker(pingInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			t.WriteMu.Lock()
+			err := t.Connection.WriteControl(
+				websocket.PingMessage,
+				nil,
+				time.Now().Add(writeWait),
+			)
+			t.WriteMu.Unlock()
+			if err != nil {
+				log.Debug().Err(err).Str("subdomain", t.Subdomain).Msg("ping write failed; closing tunnel")
+				_ = t.Connection.Close()
+				return
+			}
+		}
+	}
 }
