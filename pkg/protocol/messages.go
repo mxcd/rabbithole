@@ -53,6 +53,8 @@ type WSOpen struct {
 type WSOpened struct {
 	Message
 	StreamID string `json:"streamId"`
+	// Protocol is the subprotocol the local server selected, echoed to the browser.
+	Protocol string `json:"protocol,omitempty"`
 }
 
 type WSFrame struct {

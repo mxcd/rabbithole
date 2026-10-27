@@ -40,7 +40,7 @@ func (t *Tunnel) ReadLoop() {
 				log.Warn().Err(err).Msg("failed to unmarshal WSOpened")
 				continue
 			}
-			t.resolveWSOpened(opened.StreamID)
+			t.resolveWSOpened(opened.StreamID, opened.Protocol)
 
 		case protocol.TypeWSFrame:
 			var frame protocol.WSFrame
@@ -67,13 +67,13 @@ func (t *Tunnel) ReadLoop() {
 	}
 }
 
-func (t *Tunnel) resolveWSOpened(streamID string) {
+func (t *Tunnel) resolveWSOpened(streamID, subprotocol string) {
 	t.WsMu.Lock()
 	stream, ok := t.WsStreams[streamID]
 	t.WsMu.Unlock()
 	if ok && stream.OpenedChan != nil {
 		select {
-		case stream.OpenedChan <- struct{}{}:
+		case stream.OpenedChan <- subprotocol:
 		default:
 		}
 	}

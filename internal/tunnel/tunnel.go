@@ -42,7 +42,7 @@ type Tunnel struct {
 type WSStream struct {
 	BrowserConn *websocket.Conn
 	FrameChan   chan *protocol.WSFrame
-	OpenedChan  chan struct{}
+	OpenedChan  chan string // carries the selected subprotocol
 	Done        chan struct{}
 }
 

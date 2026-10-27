@@ -384,7 +384,10 @@ func handleWSOpen(writeJSON func(any) error, wsConns *map[string]*websocket.Conn
 		wsURL += "?" + open.Query
 	}
 
-	localConn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	// Forward the requested subprotocols: servers like Vite HMR ignore an upgrade without theirs.
+	dialer := *websocket.DefaultDialer
+	dialer.Subprotocols = websocket.Subprotocols(&http.Request{Header: open.Headers})
+	localConn, _, err := dialer.Dial(wsURL, nil)
 	if err != nil {
 		writeJSON(protocol.WSClose{
 			Message:  protocol.Message{Type: protocol.TypeWSClose},
@@ -402,6 +405,7 @@ func handleWSOpen(writeJSON func(any) error, wsConns *map[string]*websocket.Conn
 	writeJSON(protocol.WSOpened{
 		Message:  protocol.Message{Type: protocol.TypeWSOpened},
 		StreamID: open.StreamID,
+		Protocol: localConn.Subprotocol(),
 	})
 
 	printWSEvent(open.Path, "open")

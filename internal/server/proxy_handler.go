@@ -110,7 +110,7 @@ func (s *Server) proxyWebSocket(c *gin.Context, subdomain string) {
 
 	stream := &tunnel.WSStream{
 		FrameChan:  make(chan *protocol.WSFrame, 64),
-		OpenedChan: make(chan struct{}, 1),
+		OpenedChan: make(chan string, 1),
 		Done:       make(chan struct{}),
 	}
 	t.RegisterWSStream(streamID, stream)
@@ -137,8 +137,9 @@ func (s *Server) proxyWebSocket(c *gin.Context, subdomain string) {
 		return
 	}
 
+	var subprotocol string
 	select {
-	case <-stream.OpenedChan:
+	case subprotocol = <-stream.OpenedChan:
 	case <-time.After(10 * time.Second):
 		c.JSON(http.StatusGatewayTimeout, gin.H{"error": "WebSocket tunnel open timed out"})
 		return
@@ -147,7 +148,12 @@ func (s *Server) proxyWebSocket(c *gin.Context, subdomain string) {
 		return
 	}
 
-	browserConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	// Browsers fail a handshake that requested a subprotocol and got none back (Vite HMR asks for "vite-hmr").
+	var respHeader http.Header
+	if subprotocol != "" {
+		respHeader = http.Header{"Sec-Websocket-Protocol": {subprotocol}}
+	}
+	browserConn, err := upgrader.Upgrade(c.Writer, c.Request, respHeader)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to upgrade browser WebSocket")
 		return
